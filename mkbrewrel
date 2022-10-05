@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION='1.1.1'
+VERSION='1.1.2'
 
 mkbrewrel_main() {
 	trap _exit INT TERM
@@ -66,11 +66,11 @@ mkbrewrel_process() {
 
 	description="$( gh repo view --json description | jq -r .description )"
 	homepage="$( gh repo view --json url | jq -r .url )"
-	title="$scriptname"
+	name="$( gh repo view --json name | jq -r .name )"
 	url="$( gh release view "$tag" --json tarballUrl | jq -r .tarballUrl )"
 	sha256="$( curl -sL "$url" | shasum -a 256 | awk '{print $1}' )"
 	version="$( echo "$tag" | sed 's/^v//' )"
-	classname="$( _pascal_case "$title" )"
+	classname="$( _pascal_case "$name" )"
 
 cat <<FORMULA
 class $classname < Formula
@@ -82,11 +82,11 @@ class $classname < Formula
 	license "ISC"
 
 	def install
-		bin.install "./$scriptname"
+		bin.install "./$name"
 	end
 
 	test do
-		system "./$scriptname", "-v"
+		system "./$name", "-v"
 	end
 end
 FORMULA
