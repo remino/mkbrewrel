@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION='1.0.1'
+VERSION='1.1.0'
 
 mkbrewrel_main() {
 	trap _exit INT TERM
@@ -69,7 +69,7 @@ mkbrewrel_process() {
 	sha256="$( curl -sL "$url" | shasum -a 256 | awk '{print $1}' )"
 	title="$scriptname"
 	url="$( gh release view "$tag" --json tarballUrl | jq -r .tarballUrl )"
-	version="$tag"
+	version="$( echo "$tag" | sed 's/^v//' )"
 	classname="$( _pascal_case "$title" )"
 
 cat <<FORMULA
@@ -79,6 +79,15 @@ class $classname < Formula
 	url "$url"
 	sha256 "$sha256"
 	version "$version"
+	license "ISC"
+
+	def install
+		bin.install "./$scriptname"
+	end
+
+	test do
+		system "./$scriptname", "-v"
+	end
 end
 FORMULA
 }
