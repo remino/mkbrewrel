@@ -65,7 +65,7 @@ mkbrewrel_process() {
 	[ $result -ne 0 ] && _fail $e_no_release "Failed to create release."
 
 	description="$( gh repo view --json description | jq -r .description )"
-	homepage="$( gh repo view --json homepage | jq -r .homepage )"
+	homepage="$( gh repo view --json url | jq -r .url )"
 	sha256="$( curl -sL "$url" | shasum -a 256 | awk '{print $1}' )"
 	title="$scriptname"
 	url="$( gh release view "$tag" --json tarballUrl | jq -r .tarballUrl )"
