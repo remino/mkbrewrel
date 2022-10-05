@@ -25,11 +25,7 @@ mkbrewrel_main() {
 
 	shift "$(( OPTIND - 1 ))"
 
-	[ -z "$cmd" ] && cmd="$1"
-	shift
-
-	[ -z "$cmd" ] && cmd="help"
-	#[ -z "$cmd" ] && cmd="process"
+	[ -z "$cmd" ] && cmd="process"
 
 	case "$cmd" in
 		help|process|version) "mkbrewrel_$cmd" "$@" ;;
