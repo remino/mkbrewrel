@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION='1.1.0'
+VERSION='1.1.1'
 
 mkbrewrel_main() {
 	trap _exit INT TERM
@@ -66,9 +66,9 @@ mkbrewrel_process() {
 
 	description="$( gh repo view --json description | jq -r .description )"
 	homepage="$( gh repo view --json url | jq -r .url )"
-	sha256="$( curl -sL "$url" | shasum -a 256 | awk '{print $1}' )"
 	title="$scriptname"
 	url="$( gh release view "$tag" --json tarballUrl | jq -r .tarballUrl )"
+	sha256="$( curl -sL "$url" | shasum -a 256 | awk '{print $1}' )"
 	version="$( echo "$tag" | sed 's/^v//' )"
 	classname="$( _pascal_case "$title" )"
 
