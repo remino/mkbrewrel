@@ -58,11 +58,11 @@ mkbrewrel_process() {
 
 	tag="$1"
 	[ -z "$tag" ] && tag="$( git tag | sort -V | tail -1 )"
-	[ -z "$tag" ] && _fail $e_no_tag "No tag found."
+	[ -z "$tag" ] && _fatal $e_no_tag "No tag found."
 
 	gh release create "$tag" --title "$tag" --generate-notes > /dev/null 2>&1
 	result=$?
-	[ $result -ne 0 ] && _fail $e_no_release "Failed to create release."
+	[ $result -ne 0 ] && _fatal $e_no_release "Failed to create release."
 
 	description="$( gh repo view --json description | jq -r .description )"
 	homepage="$( gh repo view --json url | jq -r .url )"
