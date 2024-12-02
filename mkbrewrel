@@ -9,37 +9,40 @@ mkbrewrel_main() {
 	e_missing_app=17
 	e_no_tag=18
 	e_no_release=19
+	e_not_found=20
 
-	scriptinv="$( basename "$0" )"
-	scriptpath="$( readlink -f "$0" )"
-	scriptname="$( basename "$scriptpath" )"
+	scriptinv="$(basename "$0")"
+	scriptpath="$(readlink -f "$0")"
+	scriptname="$(basename "$scriptpath")"
 
-	while getopts hv opt
-	do
+	[ -z "$MKBREWREL_LIB_DIR" ] && MKBREWREL_LIB_DIR="$SCRIPT_DIR/lib"
+
+	while getopts ht:v opt; do
 		case $opt in
-			h) cmd=help ;;
-			v) cmd=version ;;
-			*) _invalid_opt ;;
+		h) cmd=help ;;
+		t) TEMPLATE="$OPTARG" ;;
+		v) cmd=version ;;
+		*) _invalid_opt ;;
 		esac
 	done
 
-	shift "$(( OPTIND - 1 ))"
+	shift "$((OPTIND - 1))"
 
 	[ -z "$cmd" ] && cmd="process"
 
 	case "$cmd" in
-		help|process|version) "mkbrewrel_$cmd" "$@" ;;
-		*) _invalid_cmd ;;
+	help | process | version) "mkbrewrel_$cmd" "$@" ;;
+	*) _invalid_cmd ;;
 	esac
 
 	_exit
 }
 
 mkbrewrel_help() {
-cat <<USAGE
+	cat <<USAGE
 $scriptname $VERSION
 
-USAGE: $scriptinv [<options>] [<tag>]
+USAGE: $scriptinv [-t <template>] [<options>] [<tag>]
 
 Create release on GitHub and get information needed for Homebrew formula.
 
@@ -47,8 +50,9 @@ Uses latest version tag by default (e.g. v1.2.3) or the one specified.
 
 OPTIONS:
 
-	-h        Show this help screen.
-	-v        Show script name and version number.
+	-h             Show this help screen.
+	-t <template>  Use a custom Mustache template file.
+	-v             Show script name and version number.
 
 USAGE
 }
@@ -57,39 +61,32 @@ mkbrewrel_process() {
 	_require curl jq gh git
 
 	tag="$1"
-	[ -z "$tag" ] && tag="$( git tag | sort -V | tail -1 )"
+	[ -z "$tag" ] && tag="$(git tag | sort -V | tail -1)"
 	[ -z "$tag" ] && _fatal $e_no_tag "No tag found."
 
-	gh release create "$tag" --title "$tag" --generate-notes > /dev/null 2>&1
+	gh release create "$tag" --title "$tag" --generate-notes >/dev/null 2>&1
 	result=$?
 	[ $result -ne 0 ] && _fatal $e_no_release "Failed to create release."
 
-	description="$( gh repo view --json description | jq -r .description )"
-	homepage="$( gh repo view --json url | jq -r .url )"
-	name="$( gh repo view --json name | jq -r .name )"
-	url="$( gh release view "$tag" --json tarballUrl | jq -r .tarballUrl )"
-	sha256="$( curl -sL "$url" | shasum -a 256 | awk '{print $1}' )"
-	version="$( echo "$tag" | sed 's/^v//' )"
-	classname="$( _pascal_case "$name" )"
+	DESCRIPTION="$(gh repo view --json description | jq -r .description)"
+	HOMEPAGE="$(gh repo view --json url | jq -r .url)"
+	NAME="$(gh repo view --json name | jq -r .name)"
+	URL="$(gh release view "$tag" --json tarballUrl | jq -r .tarballUrl)"
+	SHA256="$(curl -sL "$URL" | shasum -a 256 | awk '{print $1}')"
+	VERSION="$(echo "$tag" | sed 's/^v//')"
+	CLASSNAME="$(_pascal_case "$NAME")"
 
-cat <<FORMULA
-class $classname < Formula
-	desc "$description"
-	homepage "$homepage"
-	url "$url"
-	sha256 "$sha256"
-	version "$version"
-	license "ISC"
+	export DESCRIPTION HOMEPAGE NAME URL SHA256 VERSION CLASSNAME
 
-	def install
-		bin.install "./$name"
-	end
+	. "$MKBREWREL_LIB_DIR/mo"
 
-	test do
-		system "./$name", "-v"
-	end
-end
-FORMULA
+	if [ -z "$TEMPLATE" ]; then
+		_template | mo
+	else
+		[ ! -f "$TEMPLATE" ] &&
+			_fatal $e_not_found "Template file not found: $TEMPLATE"
+		mo -t "$TEMPLATE"
+	fi
 }
 
 mkbrewrel_version() {
@@ -137,19 +134,37 @@ _pascal_case() {
 _require() {
 	missing_bin=0
 
-	for bin in "$@"
-	do
-		if ! which "$bin" > /dev/null 2>&1
-		then
+	for bin in "$@"; do
+		if ! which "$bin" >/dev/null 2>&1; then
 			missing_bin=1
 			_error "Required: $bin"
 		fi
 	done
 
-	if [ $missing_bin -ne 0 ]
-	then
+	if [ $missing_bin -ne 0 ]; then
 		_fatal $e_missing_app "One or more executables or apps are missing."
 	fi
+}
+
+_template() {
+	cat <<TEMPLATE
+class {{CLASSNAME}} < Formula
+	desc "{{DESCRIPTION}}"
+	homepage "{{HOMEPAGE}}"
+	url "{{URL}}"
+	sha256 "{{SHA256}}"
+	version "{{VERSION}}"
+	license "ISC"
+
+	def install
+		bin.install "./{{NAME}}"
+	end
+
+	test do
+		system "./{{NAME}}", "-v"
+	end
+end
+TEMPLATE
 }
 
 mkbrewrel_main "$@"
