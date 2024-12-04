@@ -87,7 +87,7 @@ mkbrewrel_process() {
 		homepage="$(gh repo view --json url | jq -r .url)"
 		name="$(gh repo view --json name | jq -r .name)"
 		url="$(gh release view "$tag" --json tarballUrl | jq -r .tarballUrl)"
-		sha256="$(curl -sl "$url" | shasum -a 256 | awk '{print $1}')"
+		sha256="$(curl -sL "$url" | shasum -a 256 | awk '{print $1}')"
 		version="$(echo "$tag" | sed 's/^v//')"
 		class_name="$(_pascal_case "$name")"
 	fi
