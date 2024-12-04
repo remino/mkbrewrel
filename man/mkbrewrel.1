@@ -1,0 +1,60 @@
+.TH mkbrewrel 1 "December 2024" "mkbrewrel"
+.SH NAME
+mkbrewrel \- Create release on GitHub and generate Homebrew formula output to stdout.
+.SH SYNOPSIS
+.B mkbrewrel
+[\fI-hsv\fR] [\fI-t\fR \fITEMPLATE\fR] [\fITAG\fR]
+.SH DESCRIPTION
+.B mkbrewrel
+creates a release on GitHub and generates Homebrew formula then outputs it to stdout.
+If no tag is specified, it uses the latest version tag (e.g. v1.2.3).
+.SH OPTIONS
+.TP
+.B \-b
+Only write a bare script with only the shebang line, without template.
+.TP
+.B \-h
+Show help screen.
+.TP
+.B \-s
+Use sample values for testing.
+.TP
+.B \-t \fITEMPLATE\fR
+Specify a custom Mustache template to use. Typically has a \fI.mustache\fR extension.
+.TP
+.B \-v
+Show the version number.
+.SH TEMPLATES
+mkbrewrel uses Mustache templates to generate Homebrew formulaes.
+The templates typical have the optional extension of \fI.mustache\fR.
+.TP
+The following variables are available:
+.TP
+.B \fIclass_name\fR
+The name of the formula class, typically the name of the software.
+.TP
+.B \fIdescription\fR
+A short description of the software.
+.TP
+.B \fIhomepage\fR
+The URL of the software's homepage.
+.TP
+.B \fIname\fR
+The name of the software. Typically the name of the executable.
+.TP
+.B \fIsha256\fR
+The SHA256 checksum of the software archive.
+.TP
+.B \fIversion\fR
+The version number of the software.
+.TP
+.B \fIlicense\fR
+The software's license. Defaults to \fIISC\fR.
+.TP
+.SH AUTHOR
+Written by Rémino Rem: <https://remino.net/>
+.SH "ISSUES"
+GitHub: <https://github.com/remino/mkbrewrel>
+.SH COPYRIGHT
+Copyright © 2024 Rémino Rem.
+Licence ISC: <https://opensource.org/licenses/ISC>
