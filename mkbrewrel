@@ -1,56 +1,62 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 VERSION='1.1.4'
 
 mkbrewrel_main() {
 	trap _exit INT TERM
 
-	e_args=16
-	e_missing_app=17
-	e_no_tag=18
-	e_no_release=19
-	e_not_found=20
+	E_ARGS=16
+	E_MISSING_APP=17
+	E_NO_TAG=18
+	E_NO_RELEASE=19
+	E_NOT_FOUND=20
 
-	scriptinv="$(basename "$0")"
-	scriptpath="$(readlink -f "$0")"
-	scriptname="$(basename "$scriptpath")"
+	SCRIPT_INV="$(basename "$0")"
+	SCRIPT_PATH="$(readlink -f "$0")"
+	SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
+	SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+
+	SAMPLE=0
 
 	[ -z "$MKBREWREL_LIB_DIR" ] && MKBREWREL_LIB_DIR="$SCRIPT_DIR/lib"
+	[ -z "$license" ] && license="ISC"
 
-	while getopts ht:v opt; do
+	while getopts hst:v opt; do
 		case $opt in
-		h) cmd=help ;;
-		t) TEMPLATE="$OPTARG" ;;
-		v) cmd=version ;;
-		*) _invalid_opt ;;
+			h) CMD=help ;;
+			s) SAMPLE=1 ;;
+			t) TEMPLATE="$OPTARG" ;;
+			v) CMD=version ;;
+			*) _invalid_opt ;;
 		esac
 	done
 
 	shift "$((OPTIND - 1))"
 
-	[ -z "$cmd" ] && cmd="process"
+	[ -z "$CMD" ] && CMD="process"
 
-	case "$cmd" in
-	help | process | version) "mkbrewrel_$cmd" "$@" ;;
-	*) _invalid_cmd ;;
+	case "$CMD" in
+		help | process | version) "mkbrewrel_$CMD" "$@" ;;
+		*) _invalid_cmd ;;
 	esac
 
 	_exit
 }
 
 mkbrewrel_help() {
-	cat <<USAGE
-$scriptname $VERSION
+	cat << USAGE
+$SCRIPT_NAME $VERSION
 
-USAGE: $scriptinv [-t <template>] [<options>] [<tag>]
+USAGE: $SCRIPT_INV [<options>] [<tag>]
 
-Create release on GitHub and get information needed for Homebrew formula.
+Create release on GitHub and generate Homebrew formula output to stdout.
 
 Uses latest version tag by default (e.g. v1.2.3) or the one specified.
 
 OPTIONS:
 
 	-h             Show this help screen.
+	-s             Use sample values for testing.
 	-t <template>  Use a custom Mustache template file.
 	-v             Show script name and version number.
 
@@ -58,39 +64,49 @@ USAGE
 }
 
 mkbrewrel_process() {
-	_require curl jq gh git
+	if [ $SAMPLE -ne 0 ]; then
+		class_name="Example"
+		description="Sample description."
+		homepage="https://example.com"
+		name="example"
+		sha256="abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+		url="https://example.com/example.tar.gz"
+		version="1.2.3"
+	else
+		_require curl jq gh git
 
-	tag="$1"
-	[ -z "$tag" ] && tag="$(git tag | sort -V | tail -1)"
-	[ -z "$tag" ] && _fatal $e_no_tag "No tag found."
+		tag="$1"
+		[ -z "$tag" ] && tag="$(git tag | sort -V | tail -1)"
+		[ -z "$tag" ] && _fatal $E_NO_TAG "No tag found."
 
-	gh release create "$tag" --title "$tag" --generate-notes >/dev/null 2>&1
-	result=$?
-	[ $result -ne 0 ] && _fatal $e_no_release "Failed to create release."
+		gh release create "$tag" --title "$tag" --generate-notes > /dev/null 2>&1
+		result=$?
+		[ $result -ne 0 ] && _fatal $E_NO_RELEASE "Failed to create release."
 
-	DESCRIPTION="$(gh repo view --json description | jq -r .description)"
-	HOMEPAGE="$(gh repo view --json url | jq -r .url)"
-	NAME="$(gh repo view --json name | jq -r .name)"
-	URL="$(gh release view "$tag" --json tarballUrl | jq -r .tarballUrl)"
-	SHA256="$(curl -sL "$URL" | shasum -a 256 | awk '{print $1}')"
-	VERSION="$(echo "$tag" | sed 's/^v//')"
-	CLASSNAME="$(_pascal_case "$NAME")"
+		description="$(gh repo view --json description | jq -r .description)"
+		homepage="$(gh repo view --json url | jq -r .url)"
+		name="$(gh repo view --json name | jq -r .name)"
+		url="$(gh release view "$tag" --json tarballurl | jq -r .tarballUrl)"
+		sha256="$(curl -sl "$url" | shasum -a 256 | awk '{print $1}')"
+		version="$(echo "$tag" | sed 's/^v//')"
+		class_name="$(_pascal_case "$name")"
+	fi
 
-	export DESCRIPTION HOMEPAGE NAME URL SHA256 VERSION CLASSNAME
+	export class_name description homepage name sha256 url version
 
 	. "$MKBREWREL_LIB_DIR/mo"
 
 	if [ -z "$TEMPLATE" ]; then
 		_template | mo
 	else
-		[ ! -f "$TEMPLATE" ] &&
-			_fatal $e_not_found "Template file not found: $TEMPLATE"
-		mo -t "$TEMPLATE"
+		[ ! -f "$TEMPLATE" ] \
+			&& _fatal $E_NOT_FOUND "Template file not found: $TEMPLATE"
+		mo < "$TEMPLATE"
 	fi
 }
 
 mkbrewrel_version() {
-	_echo "$scriptname $VERSION"
+	_echo "$SCRIPT_NAME $VERSION"
 }
 
 _echo() {
@@ -114,17 +130,17 @@ _fatal() {
 }
 
 _invalid_cmd() {
-	_error "Invalid command: $cmd"
+	_error "Invalid command: $CMD"
 	_echo
 	mkbrewrel_help
-	exit $e_args
+	exit $E_ARGS
 }
 
 _invalid_opt() {
 	_error "Invalid option: $opt"
 	_echo
 	mkbrewrel_help
-	exit $e_args
+	exit $E_ARGS
 }
 
 _pascal_case() {
@@ -135,33 +151,33 @@ _require() {
 	missing_bin=0
 
 	for bin in "$@"; do
-		if ! which "$bin" >/dev/null 2>&1; then
+		if ! which "$bin" > /dev/null 2>&1; then
 			missing_bin=1
 			_error "Required: $bin"
 		fi
 	done
 
 	if [ $missing_bin -ne 0 ]; then
-		_fatal $e_missing_app "One or more executables or apps are missing."
+		_fatal $E_MISSING_APP "One or more executables or apps are missing."
 	fi
 }
 
 _template() {
-	cat <<TEMPLATE
-class {{CLASSNAME}} < Formula
-	desc "{{DESCRIPTION}}"
-	homepage "{{HOMEPAGE}}"
-	url "{{URL}}"
-	sha256 "{{SHA256}}"
-	version "{{VERSION}}"
-	license "ISC"
+	cat << TEMPLATE
+class {{class_name}} < Formula
+	desc "{{description}}"
+	homepage "{{homepage}}"
+	url "{{url}}"
+	sha256 "{{sha256}}"
+	version "{{version}}"
+	license "{{license}}"
 
 	def install
-		bin.install "./{{NAME}}"
+		bin.install "./{{name}}"
 	end
 
 	test do
-		system "./{{NAME}}", "-v"
+		system "./{{name}}", "-v"
 	end
 end
 TEMPLATE
