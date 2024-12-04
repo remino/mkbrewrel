@@ -1,0 +1,18 @@
+class {{class_name}} < Formula
+  # Custom formula
+
+	desc "{{description}}"
+	homepage "{{homepage}}"
+	url "{{url}}"
+	sha256 "{{sha256}}"
+	version "{{version}}"
+	license "{{license}}"
+
+	def install
+		bin.install "./{{name}}"
+	end
+
+	test do
+		system "./{{name}}", "-v"
+	end
+end
